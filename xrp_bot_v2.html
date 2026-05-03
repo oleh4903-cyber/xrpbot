@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>XRP Bot v2 — Binance</title>
+<meta name="application-name" content="XRP Bot">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="XRP Bot">
+<meta name="theme-color" content="#00d4ff">
+<link rel="manifest" id="manifestLink">
+<style>
+  #installBanner {
+    display:none;
+    position:fixed;
+    bottom:16px;
+    left:50%;
+    transform:translateX(-50%);
+    background:var(--surface);
+    border:1px solid var(--accent);
+    border-radius:12px;
+    padding:12px 16px;
+    z-index:9999;
+    width:90%;
+    max-width:400px;
+    box-shadow:0 4px 20px rgba(0,212,255,0.2);
+  }
+  #installBanner .ib-title { font-size:13px; font-weight:700; color:var(--accent); margin-bottom:4px; }
+  #installBanner .ib-desc { font-size:11px; color:var(--muted); margin-bottom:10px; }
+  #installBanner .ib-btns { display:flex; gap:8px; }
+  #installBanner .ib-install { flex:1; background:var(--accent); color:#000; border:none; border-radius:8px; padding:8px; font-weight:700; font-size:12px; cursor:pointer; }
+  #installBanner .ib-close { background:transparent; border:1px solid var(--border); color:var(--muted); border-radius:8px; padding:8px 12px; font-size:12px; cursor:pointer; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+  :root {
+    --bg: #0a0c0f;
+    --surface: #111318;
+    --surface2: #181c24;
+    --border: #1e2330;
+    --accent: #00d4ff;
+    --green: #00e676;
+    --red: #ff3d57;
+    --yellow: #ffd600;
+    --purple: #9b6dff;
+    --text: #e8eaf0;
+    --muted: #5a6070;
+    --font-mono: 'Space Mono', monospace;
+    --font-ui: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { position: relative; z-index: 1; max-width: 500px; margin: 0 auto; padding: 12px; }
+
+  /* HEADER */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; padding: 12px 16px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; border-top: 2px solid var(--accent);
+  }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .logo { font-size: 20px; }
+  .header-title { font-size: 17px; font-weight: 800; letter-spacing: -0.5px; }
+  .header-title span { color: var(--accent); }
+  .header-right { display: flex; gap: 8px; align-items: center; }
+
+  .status-badge {
+    display: flex; align-items: center; gap: 5px;
+    font-family: var(--font-mono); font-size: 10px;
+    padding: 4px 9px; border-radius: 20px; border: 1px solid;
+    transition: all 0.3s;
+  }
+  .status-badge.offline { color: var(--muted); border-color: var(--muted); }
+  .status-badge.online  { color: var(--green); border-color: var(--green); }
+  .status-badge.trading { color: var(--accent); border-color: var(--accent); animation: pulse-b 2s infinite; }
+  .status-badge.auto    { color: var(--yellow); border-color: var(--yellow); animation: pulse-y 1s infinite; }
+  @keyframes pulse-b { 0%,100%{box-shadow:0 0 0 0 rgba(0,212,255,.3)} 50%{box-shadow:0 0 0 5px rgba(0,212,255,0)} }
+  @keyframes pulse-y { 0%,100%{box-shadow:0 0 0 0 rgba(255,214,0,.4)} 50%{box-shadow:0 0 0 5px rgba(255,214,0,0)} }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* TABS */
+  .tabs {
+    display: grid; grid-template-columns: repeat(5,1fr);
+    gap: 3px; margin-bottom: 14px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 4px;
+  }
+  .tab {
+    padding: 7px 2px; text-align: center; font-size: 10px; font-weight: 600;
+    cursor: pointer; border-radius: 7px; color: var(--muted);
+    transition: all 0.2s; letter-spacing: 0.2px;
+  }
+  .tab.active { background: var(--surface2); color: var(--accent); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* CARD */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px; margin-bottom: 10px;
+  }
+  .card-title {
+    font-size: 10px; font-weight: 600; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-title::before {
+    content: ''; width: 3px; height: 11px;
+    background: var(--accent); border-radius: 2px; margin-right: 6px;
+  }
+  .card-title-left { display: flex; align-items: center; }
+
+  /* PRICE */
+  .price-display {
+    text-align: center; padding: 16px;
+    background: var(--surface2); border-radius: 10px;
+    margin-bottom: 10px; border: 1px solid var(--border);
+  }
+  .price-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+  .price-value { font-family: var(--font-mono); font-size: 30px; font-weight: 700; color: var(--accent); letter-spacing: -1px; }
+  .price-change { font-family: var(--font-mono); font-size: 12px; margin-top: 4px; }
+
+  /* CHART */
+  .chart-wrap {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; margin-bottom: 10px; overflow: hidden;
+    position: relative;
+  }
+  .chart-toolbar {
+    display: flex; gap: 4px; padding: 8px 10px 0;
+    justify-content: space-between; align-items: center;
+  }
+  .chart-btns { display: flex; gap: 3px; }
+  .chart-btn {
+    padding: 3px 9px; font-size: 10px; font-family: var(--font-mono);
+    border: 1px solid var(--border); background: transparent;
+    color: var(--muted); border-radius: 5px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .chart-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.08); }
+  .chart-info { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+  canvas#priceChart { display: block; width: 100%; height: 180px; }
+
+  /* INDICATORS */
+  .indicators-row {
+    display: flex; gap: 6px; padding: 6px 10px 8px;
+    font-family: var(--font-mono); font-size: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .ind-item { display: flex; gap: 4px; }
+  .ind-name { color: var(--muted); }
+  .ind-val { font-weight: 700; }
+
+  /* STATS */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .stat-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
+  .stat-label { font-size: 9px; color: var(--muted); margin-bottom: 3px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .stat-value { font-family: var(--font-mono); font-size: 15px; font-weight: 700; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.red   { color: var(--red); }
+  .stat-value.accent{ color: var(--accent); }
+  .stat-value.yellow{ color: var(--yellow); }
+  .stat-value.purple{ color: var(--purple); }
+
+  /* FORM */
+  .form-row { margin-bottom: 10px; }
+  .form-label {
+    font-size: 10px; color: var(--muted); margin-bottom: 5px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .form-label span { color: var(--accent); font-family: var(--font-mono); font-size: 10px; }
+
+  input[type="text"], input[type="password"], input[type="number"], select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-family: var(--font-mono);
+    font-size: 13px; padding: 9px 11px; outline: none;
+    transition: border-color 0.2s; -webkit-appearance: none;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  input[type="password"] { letter-spacing: 2px; }
+  select option { background: var(--surface2); }
+
+  /* TOGGLE */
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 0; border-bottom: 1px solid var(--border);
+  }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-label { font-size: 13px; }
+  .toggle-desc { font-size: 10px; color: var(--muted); margin-top: 1px; }
+  .toggle { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; inset: 0; background: var(--border);
+    border-radius: 22px; cursor: pointer; transition: 0.3s;
+  }
+  .toggle-slider::before {
+    content: ''; position: absolute; width: 16px; height: 16px;
+    left: 3px; top: 3px; background: var(--muted);
+    border-radius: 50%; transition: 0.3s;
+  }
+  .toggle input:checked + .toggle-slider { background: rgba(0,212,255,0.2); }
+  .toggle input:checked + .toggle-slider::before { transform: translateX(18px); background: var(--accent); }
+
+  /* BUTTONS */
+  .btn {
+    width: 100%; padding: 12px; border-radius: 10px; border: none;
+    font-family: var(--font-ui); font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
+  }
+  .btn-primary  { background: var(--accent); color: #000; }
+  .btn-danger   { background: var(--red); color: #fff; }
+  .btn-success  { background: var(--green); color: #000; }
+  .btn-yellow   { background: var(--yellow); color: #000; }
+  .btn-outline  { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:active   { transform: scale(0.98); }
+  .btn-sm       { width: auto; padding: 5px 12px; font-size: 11px; border-radius: 6px; }
+  .btn-row      { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn-row3     { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+
+  .trade-btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .trade-btn {
+    padding: 15px; border-radius: 10px; border: none;
+    font-family: var(--font-ui); font-size: 15px; font-weight: 800;
+    cursor: pointer; transition: all 0.15s; letter-spacing: 0.5px;
+  }
+  .trade-btn-buy  { background: var(--green); color: #000; }
+  .trade-btn-sell { background: var(--red); color: #fff; }
+  .trade-btn:active { transform: scale(0.97); }
+
+  /* LOG */
+  .log {
+    background: #080a0d; border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px; height: 170px;
+    overflow-y: auto; font-family: var(--font-mono); font-size: 10px;
+  }
+  .log::-webkit-scrollbar { width: 3px; }
+  .log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .log-entry { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.02); }
+  .log-entry .time { color: var(--muted); margin-right: 5px; }
+  .log-entry.buy    .msg { color: var(--green); }
+  .log-entry.sell   .msg { color: var(--red); }
+  .log-entry.warn   .msg { color: var(--yellow); }
+  .log-entry.error  .msg { color: var(--red); font-weight: 700; }
+  .log-entry.system .msg { color: var(--accent); }
+  .log-entry.info   .msg { color: var(--text); }
+  .log-entry.auto   .msg { color: var(--purple); }
+
+  /* TABLE */
+  .trade-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .trade-table th {
+    text-align: left; font-size: 9px; color: var(--muted);
+    letter-spacing: 0.5px; padding: 5px 6px; border-bottom: 1px solid var(--border);
+  }
+  .trade-table td { padding: 7px 6px; border-bottom: 1px solid rgba(30,35,48,0.5); font-family: var(--font-mono); font-size: 10px; }
+  .trade-table tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; }
+  .badge-buy  { background: rgba(0,230,118,0.15); color: var(--green); }
+  .badge-sell { background: rgba(255,61,87,0.15); color: var(--red); }
+  .badge-auto { background: rgba(155,109,255,0.15); color: var(--purple); }
+
+  /* SIGNAL BOX */
+  .signal-box {
+    border-radius: 10px; padding: 12px; margin-bottom: 10px;
+    border: 1px solid; text-align: center;
+    transition: all 0.4s;
+  }
+  .signal-box.buy   { background: rgba(0,230,118,0.08); border-color: var(--green); }
+  .signal-box.sell  { background: rgba(255,61,87,0.08); border-color: var(--red); }
+  .signal-box.hold  { background: rgba(90,96,112,0.08); border-color: var(--muted); }
+  .signal-label { font-size: 10px; color: var(--muted); margin-bottom: 4px; letter-spacing: 1px; text-transform: uppercase; }
+  .signal-value { font-family: var(--font-mono); font-size: 22px; font-weight: 700; letter-spacing: 2px; }
+  .signal-box.buy  .signal-value { color: var(--green); }
+  .signal-box.sell .signal-value { color: var(--red); }
+  .signal-box.hold .signal-value { color: var(--muted); }
+  .signal-reason { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+  /* PROGRESS */
+  .progress-wrap { margin-top: 6px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); margin-bottom: 3px; }
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.5s; }
+  .progress-fill.red   { background: var(--red); }
+  .progress-fill.green { background: var(--green); }
+
+  /* TAX */
+  .pit-header {
+    background: linear-gradient(135deg, #1a1030, #0d1a2a);
+    border: 1px solid #2a2040; border-radius: 10px;
+    padding: 14px; margin-bottom: 10px; text-align: center;
+  }
+  .pit-header h3 { font-size: 18px; color: var(--accent); margin-bottom: 3px; }
+  .pit-header p { font-size: 10px; color: var(--muted); }
+  .tax-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 12px;
+  }
+  .tax-row:last-child { border-bottom: none; }
+  .tax-key { color: var(--muted); }
+  .tax-val { font-family: var(--font-mono); font-weight: 700; }
+
+  /* ALERT */
+  .alert { padding: 9px 12px; border-radius: 8px; font-size: 11px; margin-bottom: 10px; border-left: 3px solid; }
+  .alert-warn    { background: rgba(255,214,0,0.07);   border-color: var(--yellow); color: var(--yellow); }
+  .alert-info    { background: rgba(0,212,255,0.07);   border-color: var(--accent); color: var(--accent); }
+  .alert-success { background: rgba(0,230,118,0.07);   border-color: var(--green);  color: var(--green);  }
+  .alert-purple  { background: rgba(155,109,255,0.07); border-color: var(--purple); color: var(--purple); }
+
+  /* AUTO TRADE STATUS */
+  .auto-status {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    background: var(--surface2); border-radius: 8px; margin-top: 8px;
+    font-size: 11px; border: 1px solid var(--border);
+  }
+  .auto-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .auto-dot.active   { background: var(--yellow); animation: blink 1s infinite; }
+  .auto-dot.paused   { background: var(--muted); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  .divider { height: 1px; background: var(--border); margin: 10px 0; }
+  .text-muted { color: var(--muted); font-size: 10px; }
+  .mt-8 { margin-top: 8px; }
+  .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  .safe-bottom { height: 20px; }
+
+  /* RSI gauge */
+  .rsi-gauge { position: relative; height: 6px; background: var(--border); border-radius: 3px; margin: 6px 0; overflow: visible; }
+  .rsi-fill { height: 100%; border-radius: 3px; transition: width 0.5s, background 0.5s; }
+  .rsi-pointer {
+    position: absolute; top: -4px; width: 2px; height: 14px;
+    background: #fff; border-radius: 1px; transition: left 0.5s;
+    transform: translateX(-50%);
+  }
+  .rsi-labels { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">⚡</div>
+      <div class="header-title">XRP<span>Bot</span> <span style="font-size:10px;color:var(--muted);font-weight:400">v2</span></div>
+    </div>
+    <div class="header-right">
+      <div class="status-badge offline" id="statusBadge">
+        <div class="dot"></div>
+        <span id="statusText">OFFLINE</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('dashboard')">📊 Dash</div>
+    <div class="tab" onclick="switchTab('chart')">📈 Chart</div>
+    <div class="tab" onclick="switchTab('trade')">💱 Trade</div>
+    <div class="tab" onclick="switchTab('auto')">🤖 Auto</div>
+    <div class="tab" onclick="switchTab('settings')">⚙️ API</div>
+  </div>
+
+  <!-- ===== DASHBOARD ===== -->
+  <div id="panel-dashboard" class="panel active">
+
+    <div class="price-display">
+      <div class="price-label">XRPUSDT · Binance <span id="paperLabel" style="color:var(--yellow);margin-left:6px">PAPER</span></div>
+      <div class="price-value" id="currentPrice">—</div>
+      <div class="price-change" id="priceChange" style="color:var(--muted)">завантаження...</div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-label">Баланс USDT</div>
+        <div class="stat-value accent" id="balanceUSDT">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Баланс XRP</div>
+        <div class="stat-value accent" id="balanceXRP">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">P&L сьогодні</div>
+        <div class="stat-value" id="pnlToday">0.00</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Угод / авто</div>
+        <div class="stat-value yellow" id="tradesInfo">0 / 0</div>
+      </div>
+    </div>
+
+    <!-- Current position -->
+    <div class="card">
+      <div class="card-title"><span class="card-title-left">Позиція</span></div>
+      <div class="tax-row"><span class="tax-key">Вхід</span><span class="tax-val" id="entryPrice">—</span></div>
+      <div class="tax-row"><span class="tax-key">Обсяг</span><span class="tax-val" id="positionSize">—</span></div>
+      <div class="tax-row"><span class="tax-key">P&L</span><span class="tax-val" id="currentPnl">—</span></div>
+      <div class="progress-wrap">
+        <div class="progress-label"><span>Stop Loss</span><span id="slPct">—</span></div>
+        <div class="progress-bar"><div class="progress-fill red" id="slBar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="card">
+      <div class="card-title">
+        <span class="card-title-left">Лог</span>
+        <div style="display:flex;gap:5px">
+          <button class="btn btn-outline btn-sm" onclick="clearLog()">Очистити</button>
+          <button class="btn btn-outline btn-sm" onclick="refreshPrice()">↻</button>
+        </div>
+      </div>
+      <div class="log" id="tradeLog">
+        <div class="log-entry system"><span class="time">--:--</span><span class="msg">XRP Bot v2 готовий</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== CHART ===== -->
+  <div id="panel-chart" class="panel">
+
+    <div class="chart-wrap">
+      <div class="chart-toolbar">
+        <div class="chart-btns">
+          <button class="chart-btn active" onclick="setChartInterval('1m',this)">1м</button>
+          <button class="chart-btn" onclick="setChartInterval('5m',this)">5м</button>
+          <button class="chart-btn" onclick="setChartInterval('15m',this)">15м</button>
+          <button class="chart-btn" onclick="setChartInterval('1h',this)">1г</button>
+          <button class="chart-btn" onclick="setChartInterval('4h',this)">4г</button>
+        </div>
+        <div class="chart-info" id="chartInfo">XRP/USDT</div>
+      </div>
+      <canvas id="priceChart"></canvas>
+      <div class="indicators-row" id="indicatorsRow">
+        <div class="ind-item"><span class="ind-name">RSI:</span><span class="ind-val" id="rsiVal" style="color:var(--muted)">—</span></div>
+        <div class="ind-item"><span class="ind-name">MA20:</span><span class="ind-val" id="ma20Val" style="color:var(--muted)">—</span></div>
+        <div class="ind-item"><span class="ind-name">MA50:</span><span class="ind-val" id="ma50Val" style="color:var(--muted)">—</span></div>
+        <div class="ind-item"><span class="ind-name">Vol:</span><span class="ind-val" id="volVal" style="color:var(--muted)">—</span></div>
+      </div>
+    </div>
+
+    <!-- RSI gauge -->
+    <div class="card">
+      <div class="card-title"><span class="card-title-left">RSI (14)</span><span id="rsiValBig" style="font-family:var(--font-mono);font-size:14px;color:var(--accent)">—</span></div>
+      <div class="rsi-gauge">
+        <div class="rsi-fill" id="rsiFill" style="width:50%;background:var(--muted)"></div>
+        <div class="rsi-pointer" id="rsiPointer" style="left:50%"></div>
+      </div>
+      <div class="rsi-labels">
+        <span style="color:var(--green)">0 Перепроданість</span>
+        <span>50</span>
+        <span style="color:var(--red)">100 Перекупленість</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="card-title-left">Сигнал індикаторів</span></div>
+      <div class="signal-box hold" id="signalBox">
+        <div class="signal-label">Поточний сигнал</div>
+        <div class="signal-value" id="signalVal">HOLD</div>
+        <div class="signal-reason" id="signalReason">Завантаження даних...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== TRADE ===== -->
+  <div id="panel-trade" class="panel">
+
+    <div class="card">
+      <div class="card-title"><span class="card-title-left">Ручна угода</span></div>
+
+      <div class="form-row">
+        <div class="form-label">Обсяг XRP <span id="maxXrpLabel">макс: —</span></div>
+        <input type="number" id="tradeAmount" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div class="form-row">
+        <div class="form-label">% від балансу</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px">
+          <button class="btn btn-outline btn-sm" onclick="setPct(25)">25%</button>
+          <button class="btn btn-outline btn-sm" onclick="setPct(50)">50%</button>
+          <button class="btn btn-outline btn-sm" onclick="setPct(75)">75%</button>
+          <button class="btn btn-outline btn-sm" onclick="setPct(100)">100%</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Ціна <span>USDT (порожньо = ринкова)</span></div>
+        <input type="number" id="tradePrice" placeholder="Ринкова" min="0" step="0.0001">
+      </div>
+
+      <div class="trade-btn-row">
+        <button class="trade-btn trade-btn-buy"  onclick="manualTrade('BUY')">▲ BUY</button>
+        <button class="trade-btn trade-btn-sell" onclick="manualTrade('SELL')">▼ SELL</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="card-title-left">Захисні ордери</span></div>
+      <div class="toggle-row">
+        <div><div class="toggle-label">Take Profit</div><div class="toggle-desc" id="tpDesc">+3.00%</div></div>
+        <label class="toggle"><input type="checkbox" id="tpToggle" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-label">Stop Loss</div><div class="toggle-desc" id="slDesc">-2.00%</div></div>
+        <label class="toggle"><input type="checkbox" id="slToggle" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-label">Auto-Reentry після SL</div><div class="toggle-desc" id="reentryDesc">3 рази макс.</div></div>
+        <label class="toggle"><input type="checkbox" id="reentryToggle"><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="card-title-left">Історія</span></div>
+      <div style="overflow-x:auto">
+        <table class="trade-table">
+          <thead><tr><th>Час</th><th>Тип</th><th>Ціна</th><th>XRP</th><th>P&L</th></tr></thead>
+          <tbody id="tradeHistoryBody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">Немає угод</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== AUTO TRADING ===== -->
+  <div id="panel-auto" class="panel">
+
+    <div class="alert alert-purple">
+      🤖 Авто-торгівля виконує угоди автоматично на основі індикаторів. Спочатку протестуй у Paper Mode!
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="card-title-left">Стратегія</span></div>
+      <div class="form-row">
+        <div class="form-label">Тип стратегії</div>
+        <select id="strategyType" onchange="updateStrategyDesc()">
+          <option value="rsi">RSI (перекуп/перепродаж)</option>
+          <option value="ma_cross">MA Crossover (золотий хрест)</option>
+          <option value="rsi_ma">RSI + MA (комбінований)</option>
+          <option value="breakout">Breakout (пробій рівня)</option>
+        </select>
+      </div>
+      <div class="alert alert-info" id="strategyDesc" style="margin-bottom:0">
+        Купує коли RSI &lt; 30 (перепроданість), продає коли RSI &gt; 70 (перекупленість)
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="card-title-left">Параметри стратегії</span></div>
+      <div id="strategyParams">
+        <div class="form-row">
+          <div class="form-label">RSI Buy рівень <span id="rsiBuyDisplay">30</span></div>
+          <input type="number" id="rsiBuyLevel" value="30" min="10" max="45" step="1" oninput="updateStrategyDisplay()">
+        </div>
+        <div class="form-row">
+          <div class="form-label">RSI Sell рівень <span id="rsiSellDisplay">70</span></div>
+          <input type="number" id="rsiSellLevel" value="70" min="55" max="90" step="1" oninput="updateStrategyDisplay()">
+        </div>
+        <div class="form-row">
+          <div class="form-label">MA швидка (MA Fast)</div>
+          <input type="number" id="maFast" value="9" min="3" max="50" step="1">
+        </div>
+        <div class="form-row">
+          <div class="form-label">MA повільна (MA Slow)</div>
+          <input type="number" id="maSlow" value="21" min="10" max="200" step="1">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="card-title-left">Управління капіталом</span></div>
+      <div class="form-row">
+        <div class="form-label">Розмір позиції % від балансу</div>
+        <select id="autoPositionSize">
+          <option value="10">10%</option>
+          <option value="25" selected>25%</option>
+          <option value="50">50%</option>
+          <option value="100">100%</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Макс. угод на день</div>
+        <input type="number" id="autoMaxTrades" value="5" min="1" max="50" step="1">
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-label">Стоп авто після 3 збитків підряд</div><div class="toggle-desc">Захист від серії програшів</div></div>
+        <label class="toggle"><input type="checkbox" id="stopLossStreak" checked><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+
+    <!-- Auto status -->
+    <div class="card">
+      <div class="card-title"><span class="card-title-left">Статус авто-торгівлі</span></div>
+      <div class="auto-status" id="autoStatus">
+        <div class="auto-dot" id="autoDot"></div>
+        <span id="autoStatusText">Авто-торгівля вимкнена</span>
+      </div>
+      <div class="stats-grid" style="margin-top:10px;margin-bottom:0">
+        <div class="stat-box">
+          <div class="stat-label">Авто-угод</div>
+          <div class="stat-value purple" id="autoTradeCount">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Авто P&L</div>
+          <div class="stat-value" id="autoPnl">0.00</div>
+        </div>
+      </div>
+      <div class="mt-8 btn-row">
+        <button class="btn btn-yellow" id="autoStartBtn" onclick="toggleAutoTrading()">▶ Запустити</button>
+        <button class="btn btn-outline" onclick="resetAutoStats()">↺ Скинути</button>
+      </div>
+    </div>
+
+    <!-- PIT-38 short -->
+    <div class="card">
+      <div class="card-title"><span class="card-title-left">PIT-38 (швидкий)</span></div>
+      <div class="tax-row"><span class="tax-key">Дохід (przychód)</span><span class="tax-val text-accent" id="taxRevQ">0.00 PLN</span></div>
+      <div class="tax-row"><span class="tax-key">Витрати (koszt)</span><span class="tax-val" id="taxCostQ">0.00 PLN</span></div>
+      <div class="tax-row"><span class="tax-key">Податок 19%</span><span class="tax-val" style="color:var(--red)" id="taxAmtQ">0.00 PLN</span></div>
+      <div class="tax-row"><span class="tax-key">Імпортовано угод</span><span class="tax-val yellow" id="importedCount">0</span></div>
+      <div class="mt-8" style="display:flex;flex-direction:column;gap:6px">
+        <div class="alert alert-info" style="margin-bottom:0;font-size:10px">📥 Binance: Профіль → Податкова звітність → Завантажити CSV</div>
+        <label style="display:block;width:100%">
+          <input type="file" id="csvImport" accept=".csv" style="display:none" onchange="importBinanceCSV(event)">
+          <div onclick="document.getElementById(&apos;csvImport&apos;).click()" style="background:var(--surface2);border:1px dashed var(--accent);border-radius:8px;padding:10px;text-align:center;cursor:pointer;font-size:12px;color:var(--accent)">📂 Завантажити CSV з Binance</div>
+        </label>
+        <div class="btn-row">
+          <button class="btn btn-outline" onclick="exportCSV()">📤 CSV</button>
+          <button class="btn btn-outline" onclick="exportPIT()">🧾 PIT-38</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== API SETTINGS ===== -->
+  <div id="panel-settings" class="panel">
+
+    <div class="alert alert-warn">⚠️ Зберігай API ключі тільки на своєму пристрої. Не роби скріншоти!</div>
+
+    <div class="card">
+      <div class="card-title"><span class="card-title-left">Binance API</span></div>
+      <div class="form-row">
+        <div class="form-label">API Key</div>
+        <input type="password" id="apiKey" placeholder="Твій Binance API Key" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <div class="form-label">Secret Key</div>
+        <input type="password" id="secretKey" placeholder="Твій Binance Secret Key" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <div class="form-label">CORS Proxy URL <span style="color:var(--muted)">необов'язково</span><button onclick="el('proxyUrl').value='';S.proxyUrl='';try{var d=JSON.parse(localStorage.getItem('xrpbot_v3')||'{}');d.proxyUrl='';localStorage.setItem('xrpbot_v3',JSON.stringify(d));}catch(e){}log('system','✅ Proxy очищено')" style="background:var(--red);border:none;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;cursor:pointer">✕ Очистити</button></div>
+        <input type="text" id="proxyUrl" placeholder="https://your-worker.workers.dev" autocomplete="off">
+        <div class="text-muted mt-8">Потрібен якщо Binance блокує запити з браузера. Можна налаштувати Cloudflare Worker.</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="saveKeys()">💾 Зберегти</button>
+        <button class="btn btn-outline" onclick="testConnection()">🔗 Тест API</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="card-title-left">Параметри</span></div>
+      <div class="form-row">
+        <div class="form-label">Take Profit % <span id="tpDisp">3.00%</span></div>
+        <input type="number" id="tpPct" value="3" min="0.1" max="100" step="0.1" oninput="updateTPSL()">
+      </div>
+      <div class="form-row">
+        <div class="form-label">Stop Loss % <span id="slDisp">2.00%</span></div>
+        <input type="number" id="slPct" value="2" min="0.1" max="100" step="0.1" oninput="updateTPSL()">
+      </div>
+      <div class="form-row">
+        <div class="form-label">Інтервал оновлення ціни</div>
+        <select id="refreshInterval" onchange="restartPolling()">
+          <option value="5000">5 сек</option>
+          <option value="10000" selected>10 сек</option>
+          <option value="30000">30 сек</option>
+          <option value="60000">1 хв</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Курс PLN/USD (НБП)</div>
+        <input type="number" id="plnRate" value="4.02" min="1" step="0.01">
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-label">Paper Trading</div><div class="toggle-desc">Симуляція без реальних коштів</div></div>
+        <label class="toggle"><input type="checkbox" id="paperMode" checked onchange="updatePaperMode()"><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+
+    <button class="btn btn-primary mt-8" onclick="saveAllSettings()">💾 Зберегти всі налаштування</button>
+    <div class="mt-8 btn-row">
+      <button class="btn btn-outline" onclick="resetPaperBalance()">↺ Скинути баланс</button>
+      <button class="btn btn-outline" onclick="clearAllData()">🗑 Очистити дані</button>
+    </div>
+
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ================================================================
+// CRYPTO-JS HMAC for Binance API signing
+// ================================================================
+function hmacSha256(secret, message) {
+  return CryptoJS.HmacSHA256(message, secret).toString(CryptoJS.enc.Hex);
+}
+
+// ================================================================
+// STATE
+// ================================================================
+const S = {
+  price: null,
+  prevPrice: null,
+  candles: [],        // { t, o, h, l, c, v }
+  chartInterval: '1m',
+  balanceUSDT: 1000,
+  balanceXRP: 250,
+  position: null,     // { side, entryPrice, size, time }
+  trades: [],
+  pnlToday: 0,
+  tradesToday: 0,
+  autoTrades: 0,
+  autoPnl: 0,
+  lossStreak: 0,
+  reentryCount: 0,
+  autoRunning: false,
+  paperMode: true,
+  apiKey: '',
+  secretKey: '',
+  proxyUrl: '',
+  priceInterval: null,
+  autoInterval: null,
+  chartCtx: null,
+  indicators: { rsi: null, ma20: null, ma50: null, maFast: null, maSlow: null },
+  settings: { tp: 3, sl: 2, maxTrades: 10, reentryThreshold: 2, reentrySize: 100, maxReentry: 3 }
+};
+
+// ================================================================
+// INIT
+// ================================================================
+window.onload = async () => {
+  loadStorage();
+  initChart();
+  await refreshPrice();
+  await loadCandles();
+  startPolling();
+  updateTPSL();
+  renderHistory();
+  updateQuickTax();
+  updateStrategyDesc();
+  log('system', '⚡ XRP Bot v2 запущено');
+  setBadge('online');
+};
+
+// ================================================================
+// BINANCE API
+// ================================================================
+function apiBase() {
+  return S.proxyUrl ? S.proxyUrl.replace(/\/$/, '') : 'https://api.binance.com';
+}
+
+async function binancePublic(path, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const url = `${apiBase()}${path}${qs ? '?' + qs : ''}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+async function binanceSigned(method, path, params = {}) {
+  if (!S.apiKey || !S.secretKey) throw new Error('API ключі не налаштовані');
+  params.timestamp = Date.now();
+  params.recvWindow = 5000;
+  const qs = new URLSearchParams(params).toString();
+  const signature = hmacSha256(S.secretKey, qs);
+  const url = `${apiBase()}${path}?${qs}&signature=${signature}`;
+  const r = await fetch(url, {
+    method,
+    headers: { 'X-MBX-APIKEY': S.apiKey }
+  });
+  const d = await r.json();
+  if (d.code && d.code < 0) throw new Error(d.msg);
+  return d;
+}
+
+// ================================================================
+// PRICE
+// ================================================================
+async function fetchPrice() {
+  try {
+    const d = await binancePublic('/api/v3/ticker/price', { symbol: 'XRPUSDT' });
+    return parseFloat(d.price);
+  } catch(e) {
+    const base = S.price || 2.15;
+    return +(base * (1 + (Math.random() - 0.499) * 0.003)).toFixed(4);
+  }
+}
+
+async function refreshPrice() {
+  const p = await fetchPrice();
+  S.prevPrice = S.price;
+  S.price = p;
+  renderPrice();
+  updatePositionDisplay();
+  checkTPSL();
+  if (S.autoRunning) runAutoCheck();
+}
+
+function renderPrice() {
+  const p = S.price;
+  if (!p) return;
+  el('currentPrice').textContent = p.toFixed(4);
+  el('balanceUSDT').textContent = S.balanceUSDT.toFixed(2);
+  el('balanceXRP').textContent = S.balanceXRP.toFixed(4);
+  el('maxXrpLabel').textContent = 'макс: ' + S.balanceXRP.toFixed(2);
+
+  if (S.prevPrice) {
+    const diff = p - S.prevPrice;
+    const pct = diff / S.prevPrice * 100;
+    const e = el('priceChange');
+    e.textContent = (diff >= 0 ? '▲ +' : '▼ ') + diff.toFixed(4) + ' (' + pct.toFixed(3) + '%)';
+    e.style.color = diff >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+}
+
+// ================================================================
+// CANDLES & CHART
+// ================================================================
+async function loadCandles() {
+  try {
+    const data = await binancePublic('/api/v3/klines', { symbol: 'XRPUSDT', interval: S.chartInterval, limit: 100 });
+    S.candles = data.map(k => ({
+      t: k[0], o: +k[1], h: +k[2], l: +k[3], c: +k[4], v: +k[5]
+    }));
+    calcIndicators();
+    drawChart();
+    renderIndicators();
+    updateSignal();
+  } catch(e) {
+    // Generate fake candles for paper mode
+    generateFakeCandles();
+    calcIndicators();
+    drawChart();
+    renderIndicators();
+    updateSignal();
+  }
+}
+
+function generateFakeCandles() {
+  const now = Date.now();
+  let price = S.price || 2.15;
+  S.candles = [];
+  for (let i = 99; i >= 0; i--) {
+    const o = price;
+    const change = (Math.random() - 0.499) * 0.03;
+    const c = +(o * (1 + change)).toFixed(4);
+    const h = +(Math.max(o, c) * (1 + Math.random() * 0.008)).toFixed(4);
+    const l = +(Math.min(o, c) * (1 - Math.random() * 0.008)).toFixed(4);
+    const v = +(Math.random() * 500000 + 100000).toFixed(0);
+    S.candles.push({ t: now - i * 60000, o, h, l, c, v });
+    price = c;
+  }
+}
+
+function calcIndicators() {
+  const closes = S.candles.map(c => c.c);
+  S.indicators.ma20   = sma(closes, 20);
+  S.indicators.ma50   = sma(closes, 50);
+  S.indicators.rsi    = rsi(closes, 14);
+  S.indicators.maFast = sma(closes, parseInt(el('maFast').value) || 9);
+  S.indicators.maSlow = sma(closes, parseInt(el('maSlow').value) || 21);
+}
+
+function sma(arr, n) {
+  if (arr.length < n) return null;
+  const slice = arr.slice(-n);
+  return slice.reduce((a, b) => a + b, 0) / n;
+}
+
+function smaArr(arr, n) {
+  const result = [];
+  for (let i = 0; i < arr.length; i++) {
+    if (i < n - 1) { result.push(null); continue; }
+    const slice = arr.slice(i - n + 1, i + 1);
+    result.push(slice.reduce((a, b) => a + b, 0) / n);
+  }
+  return result;
+}
+
+function rsi(closes, period = 14) {
+  if (closes.length < period + 1) return null;
+  let gains = 0, losses = 0;
+  for (let i = closes.length - period; i < closes.length; i++) {
+    const diff = closes[i] - closes[i - 1];
+    if (diff > 0) gains += diff; else losses -= diff;
+  }
+  const avgGain = gains / period;
+  const avgLoss = losses / period;
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return +(100 - 100 / (1 + rs)).toFixed(2);
+}
+
+// ================================================================
+// CANVAS CHART
+// ================================================================
+function initChart() {
+  const canvas = el('priceChart');
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+  canvas.height = 180 * window.devicePixelRatio;
+  canvas.style.height = '180px';
+  S.chartCtx = canvas.getContext('2d');
+  S.chartCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+}
+
+function drawChart() {
+  const ctx = S.chartCtx;
+  if (!ctx || !S.candles.length) return;
+
+  const W = el('priceChart').offsetWidth;
+  const H = 180;
+  ctx.clearRect(0, 0, W, H);
+
+  const candles = S.candles.slice(-60);
+  const closes = candles.map(c => c.c);
+  const highs = candles.map(c => c.h);
+  const lows  = candles.map(c => c.l);
+  const ma20arr = smaArr(closes, 20);
+  const ma50arr = smaArr(closes, 50);
+
+  const allPrices = [...highs, ...lows].filter(Boolean);
+  const minP = Math.min(...allPrices) * 0.9995;
+  const maxP = Math.max(...allPrices) * 1.0005;
+  const priceRange = maxP - minP;
+
+  const pad = { top: 10, bottom: 20, left: 6, right: 6 };
+  const cW = (W - pad.left - pad.right) / candles.length;
+  const chartH = H - pad.top - pad.bottom;
+
+  const toY = p => pad.top + chartH - ((p - minP) / priceRange * chartH);
+  const toX = i => pad.left + i * cW + cW * 0.5;
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(30,35,48,0.8)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (chartH / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+    const price = maxP - (priceRange / 4) * i;
+    ctx.fillStyle = '#3a4050'; ctx.font = '8px Space Mono';
+    ctx.fillText(price.toFixed(4), W - pad.right - 38, y - 2);
+  }
+
+  // MA50
+  ctx.beginPath(); ctx.strokeStyle = 'rgba(155,109,255,0.6)'; ctx.lineWidth = 1;
+  let first50 = true;
+  ma50arr.forEach((v, i) => {
+    if (!v) return;
+    if (first50) { ctx.moveTo(toX(i), toY(v)); first50 = false; }
+    else ctx.lineTo(toX(i), toY(v));
+  });
+  ctx.stroke();
+
+  // MA20
+  ctx.beginPath(); ctx.strokeStyle = 'rgba(255,214,0,0.7)'; ctx.lineWidth = 1;
+  let first20 = true;
+  ma20arr.forEach((v, i) => {
+    if (!v) return;
+    if (first20) { ctx.moveTo(toX(i), toY(v)); first20 = false; }
+    else ctx.lineTo(toX(i), toY(v));
+  });
+  ctx.stroke();
+
+  // Candles
+  candles.forEach((c, i) => {
+    const x = pad.left + i * cW;
+    const isGreen = c.c >= c.o;
+    const color = isGreen ? '#00e676' : '#ff3d57';
+    const bodyW = Math.max(cW * 0.6, 1);
+    const bodyX = x + (cW - bodyW) / 2;
+
+    const bodyTop = toY(Math.max(c.o, c.c));
+    const bodyBot = toY(Math.min(c.o, c.c));
+    const bodyH = Math.max(bodyBot - bodyTop, 1);
+
+    // Wick
+    ctx.strokeStyle = color; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(toX(i), toY(c.h));
+    ctx.lineTo(toX(i), toY(c.l));
+    ctx.stroke();
+
+    // Body
+    ctx.fillStyle = color;
+    ctx.fillRect(bodyX, bodyTop, bodyW, bodyH);
+  });
+
+  // Entry line if position open
+  if (S.position) {
+    const y = toY(S.position.entryPrice);
+    ctx.setLineDash([4, 3]);
+    ctx.strokeStyle = S.position.side === 'BUY' ? 'var(--green)' : 'var(--red)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = S.position.side === 'BUY' ? 'var(--green)' : 'var(--red)';
+    ctx.font = 'bold 9px Space Mono';
+    ctx.fillText('ENTRY ' + S.position.entryPrice.toFixed(4), pad.left + 4, y - 3);
+  }
+
+  el('chartInfo').textContent = `${S.candles.length} свічок · ${S.chartInterval}`;
+}
+
+function setChartInterval(interval, btn) {
+  S.chartInterval = interval;
+  document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadCandles();
+}
+
+function renderIndicators() {
+  const ind = S.indicators;
+  const rsiVal = ind.rsi;
+  const rsiColor = !rsiVal ? 'var(--muted)' : rsiVal < 30 ? 'var(--green)' : rsiVal > 70 ? 'var(--red)' : 'var(--accent)';
+
+  el('rsiVal').textContent = rsiVal ? rsiVal.toFixed(1) : '—';
+  el('rsiVal').style.color = rsiColor;
+  el('rsiValBig').textContent = rsiVal ? rsiVal.toFixed(1) : '—';
+  el('rsiValBig').style.color = rsiColor;
+  el('ma20Val').textContent = ind.ma20 ? ind.ma20.toFixed(4) : '—';
+  el('ma50Val').textContent = ind.ma50 ? ind.ma50.toFixed(4) : '—';
+  el('volVal').textContent = S.candles.length ? fmtVol(S.candles[S.candles.length - 1]?.v) : '—';
+
+  // RSI gauge
+  if (rsiVal != null) {
+    const pct = rsiVal;
+    const fill = el('rsiFill');
+    fill.style.width = pct + '%';
+    fill.style.background = rsiVal < 30 ? 'var(--green)' : rsiVal > 70 ? 'var(--red)' : 'var(--accent)';
+    el('rsiPointer').style.left = pct + '%';
+  }
+}
+
+function fmtVol(v) {
+  if (!v) return '—';
+  if (v > 1000000) return (v / 1000000).toFixed(1) + 'M';
+  if (v > 1000) return (v / 1000).toFixed(0) + 'K';
+  return v.toFixed(0);
+}
+
+// ================================================================
+// SIGNAL ENGINE
+// ================================================================
+function computeSignal() {
+  const { rsi, ma20, ma50, maFast, maSlow } = S.indicators;
+  const strat = el('strategyType').value;
+  const rsiBuy = parseInt(el('rsiBuyLevel').value) || 30;
+  const rsiSell = parseInt(el('rsiSellLevel').value) || 70;
+
+  if (strat === 'rsi') {
+    if (!rsi) return { sig: 'HOLD', reason: 'Недостатньо даних' };
+    if (rsi < rsiBuy) return { sig: 'BUY', reason: `RSI ${rsi.toFixed(1)} < ${rsiBuy} (перепроданість)` };
+    if (rsi > rsiSell) return { sig: 'SELL', reason: `RSI ${rsi.toFixed(1)} > ${rsiSell} (перекупленість)` };
+    return { sig: 'HOLD', reason: `RSI ${rsi ? rsi.toFixed(1) : '—'} в нейтральній зоні` };
+  }
+
+  if (strat === 'ma_cross') {
+    if (!maFast || !maSlow) return { sig: 'HOLD', reason: 'Недостатньо даних для MA' };
+    if (maFast > maSlow * 1.001) return { sig: 'BUY', reason: `MA${el('maFast').value} (${maFast.toFixed(4)}) > MA${el('maSlow').value} (${maSlow.toFixed(4)})` };
+    if (maFast < maSlow * 0.999) return { sig: 'SELL', reason: `MA${el('maFast').value} (${maFast.toFixed(4)}) < MA${el('maSlow').value} (${maSlow.toFixed(4)})` };
+    return { sig: 'HOLD', reason: 'MA перехрестя відсутнє' };
+  }
+
+  if (strat === 'rsi_ma') {
+    if (!rsi || !maFast || !maSlow) return { sig: 'HOLD', reason: 'Недостатньо даних' };
+    const price = S.price || 0;
+    if (rsi < rsiBuy && price > maFast) return { sig: 'BUY', reason: `RSI ${rsi.toFixed(1)} + ціна вище MA${el('maFast').value}` };
+    if (rsi > rsiSell && price < maFast) return { sig: 'SELL', reason: `RSI ${rsi.toFixed(1)} + ціна нижче MA${el('maFast').value}` };
+    return { sig: 'HOLD', reason: 'Сигнали не збіглись' };
+  }
+
+  if (strat === 'breakout') {
+    if (S.candles.length < 20) return { sig: 'HOLD', reason: 'Недостатньо свічок' };
+    const recent = S.candles.slice(-20);
+    const high20 = Math.max(...recent.map(c => c.h));
+    const low20  = Math.min(...recent.map(c => c.l));
+    const price  = S.price || 0;
+    if (price >= high20 * 0.998) return { sig: 'BUY', reason: `Пробій вгору: ${price.toFixed(4)} ≈ max20 ${high20.toFixed(4)}` };
+    if (price <= low20  * 1.002) return { sig: 'SELL', reason: `Пробій вниз: ${price.toFixed(4)} ≈ min20 ${low20.toFixed(4)}` };
+    return { sig: 'HOLD', reason: `Ціна у діапазоні [${low20.toFixed(4)} – ${high20.toFixed(4)}]` };
+  }
+
+  return { sig: 'HOLD', reason: '' };
+}
+
+function updateSignal() {
+  const { sig, reason } = computeSignal();
+  const box = el('signalBox');
+  box.className = 'signal-box ' + sig.toLowerCase();
+  el('signalVal').textContent = sig;
+  el('signalReason').textContent = reason;
+}
+
+// ================================================================
+// AUTO TRADING
+// ================================================================
+function toggleAutoTrading() {
+  S.autoRunning = !S.autoRunning;
+  el('autoStartBtn').textContent = S.autoRunning ? '⏸ Зупинити' : '▶ Запустити';
+  el('autoDot').className = 'auto-dot ' + (S.autoRunning ? 'active' : 'paused');
+  el('autoStatusText').textContent = S.autoRunning ? 'Авто-торгівля активна (' + el('strategyType').options[el('strategyType').selectedIndex].text + ')' : 'Авто-торгівля вимкнена';
+
+  if (S.autoRunning) {
+    setBadge('auto');
+    log('auto', '🤖 Авто-торгівля запущена: ' + el('strategyType').value);
+  } else {
+    setBadge('online');
+    log('auto', '⏸ Авто-торгівля зупинена');
+  }
+}
+
+function runAutoCheck() {
+  if (!S.autoRunning || !S.price) return;
+
+  const maxTrades = parseInt(el('autoMaxTrades').value) || 5;
+  if (S.autoTrades >= maxTrades) {
+    log('auto', '🛑 Денний ліміт авто-угод досягнуто (' + maxTrades + ')');
+    S.autoRunning = false;
+    setBadge('online');
+    return;
+  }
+
+  if (el('stopLossStreak').checked && S.lossStreak >= 3) {
+    log('auto', '🛑 Серія з 3 збитків — авто зупинено');
+    S.autoRunning = false;
+    setBadge('online');
+    return;
+  }
+
+  calcIndicators();
+  const { sig } = computeSignal();
+  updateSignal();
+
+  const sizePct = parseInt(el('autoPositionSize').value) / 100;
+  const price = S.price;
+
+  if (sig === 'BUY' && !S.position) {
+    const amount = (S.balanceUSDT * sizePct) / price;
+    if (amount > 0.1) {
+      execTrade('BUY', amount, price, true);
+    }
+  } else if (sig === 'SELL' && S.position && S.position.side === 'BUY') {
+    execTrade('SELL', S.position.size, price, true);
+  }
+}
+
+function resetAutoStats() {
+  S.autoTrades = 0; S.autoPnl = 0; S.lossStreak = 0;
+  el('autoTradeCount').textContent = '0';
+  el('autoPnl').textContent = '0.00';
+  log('auto', '↺ Авто-статистика скинута');
+}
+
+// ================================================================
+// TRADING
+// ================================================================
+function manualTrade(side) {
+  if (!S.price) { log('error', 'Немає ціни'); return; }
+  const amt = parseFloat(el('tradeAmount').value);
+  const price = parseFloat(el('tradePrice').value) || S.price;
+  if (!amt || amt <= 0) { log('error', 'Вкажи обсяг'); return; }
+  execTrade(side, amt, price, false);
+}
+
+function execTrade(side, size, price, isAuto) {
+  const tag = isAuto ? '🤖 ' : '';
+
+  if (side === 'BUY') {
+    const cost = size * price;
+    if (S.paperMode) {
+      if (cost > S.balanceUSDT) { log('error', 'Недостатньо USDT'); return; }
+      S.balanceUSDT -= cost;
+      S.balanceXRP  += size;
+    }
+    S.position = { side: 'BUY', entryPrice: price, size, time: Date.now(), isAuto };
+    log('buy', `${tag}▲ BUY ${size.toFixed(3)} XRP @ ${price.toFixed(4)}`);
+
+  } else {
+    if (S.paperMode) {
+      if (size > S.balanceXRP) { log('error', 'Недостатньо XRP'); return; }
+      S.balanceXRP  -= size;
+      S.balanceUSDT += size * price;
+    }
+    const pnl = S.position ? (price - S.position.entryPrice) * size : 0;
+    recordTrade({ side: 'SELL', price, size, pnl, time: Date.now(), isAuto });
+    log('sell', `${tag}▼ SELL ${size.toFixed(3)} XRP @ ${price.toFixed(4)} | P&L: ${pnl >= 0 ? '+' : ''}${pnl.toFixed(3)}`);
+    if (isAuto) {
+      S.autoTrades++;
+      S.autoPnl += pnl;
+      if (pnl < 0) S.lossStreak++; else S.lossStreak = 0;
+      el('autoTradeCount').textContent = S.autoTrades;
+      const pnlEl = el('autoPnl');
+      pnlEl.textContent = (S.autoPnl >= 0 ? '+' : '') + S.autoPnl.toFixed(3);
+      pnlEl.className = 'stat-value ' + (S.autoPnl >= 0 ? 'green' : 'red');
+    }
+    S.pnlToday += pnl;
+    S.position = null;
+
+    // Auto-reentry
+    if (pnl < 0 && el('reentryToggle').checked && S.reentryCount < S.settings.maxReentry) {
+      S.reentryCount++;
+      setTimeout(() => {
+        log('auto', `🔄 Reentry #${S.reentryCount}`);
+        execTrade('BUY', size, S.price || price, isAuto);
+      }, 2000);
+    }
+  }
+
+  S.tradesToday++;
+  el('tradesInfo').textContent = S.tradesToday + ' / ' + S.autoTrades;
+  updatePnlDisplay();
+  renderPrice();
+  renderHistory();
+  drawChart();
+  updateQuickTax();
+  saveStorage();
+}
+
+function checkTPSL() {
+  if (!S.position || !S.price) return;
+  const { entryPrice, size } = S.position;
+  const pct = (S.price - entryPrice) / entryPrice * 100;
+
+  if (el('tpToggle').checked && pct >= S.settings.tp) { closeTrade('TP'); return; }
+  if (el('slToggle').checked && pct <= -S.settings.sl) { closeTrade('SL'); return; }
+}
+
+function closeTrade(reason) {
+  if (!S.position) return;
+  execTrade('SELL', S.position.size, S.price, S.position.isAuto);
+  log(reason === 'TP' ? 'sell' : 'warn', `${reason} спрацював @ ${S.price?.toFixed(4)}`);
+}
+
+function recordTrade(t) {
+  S.trades.unshift(t);
+  if (S.trades.length > 300) S.trades.pop();
+}
+
+function updatePositionDisplay() {
+  if (!S.position || !S.price) {
+    el('entryPrice').textContent = '—';
+    el('positionSize').textContent = '—';
+    el('currentPnl').textContent = '—';
+    el('slBar').style.width = '0%';
+    el('slPct').textContent = '—';
+    return;
+  }
+  const { entryPrice, size } = S.position;
+  const pnl = (S.price - entryPrice) * size;
+  const pct = (S.price - entryPrice) / entryPrice * 100;
+  const progress = Math.min(Math.abs(pct) / S.settings.sl * 100, 100);
+
+  el('entryPrice').textContent = entryPrice.toFixed(4) + ' USDT';
+  el('positionSize').textContent = size.toFixed(4) + ' XRP';
+  const pnlEl = el('currentPnl');
+  pnlEl.textContent = (pnl >= 0 ? '+' : '') + pnl.toFixed(3) + ' (' + pct.toFixed(2) + '%)';
+  pnlEl.className = 'tax-val ' + (pnl >= 0 ? 'green' : 'red');
+  el('slBar').style.width = progress + '%';
+  el('slPct').textContent = pct.toFixed(2) + '%';
+}
+
+function updatePnlDisplay() {
+  const e = el('pnlToday');
+  e.textContent = (S.pnlToday >= 0 ? '+' : '') + S.pnlToday.toFixed(3) + ' USDT';
+  e.className = 'stat-value ' + (S.pnlToday >= 0 ? 'green' : 'red');
+}
+
+// ================================================================
+// BINANCE SIGNED ORDERS (real mode)
+// ================================================================
+async function placeBinanceOrder(side, quantity, orderType = 'MARKET') {
+  const params = { symbol: 'XRPUSDT', side, type: orderType, quantity: quantity.toFixed(2) };
+  return binanceSigned('POST', '/api/v3/order', params);
+}
+
+async function fetchRealBalance() {
+  try {
+    const d = await binanceSigned('GET', '/api/v3/account', {});
+    const usdt = d.balances?.find(b => b.asset === 'USDT');
+    const xrp  = d.balances?.find(b => b.asset === 'XRP');
+    if (usdt) S.balanceUSDT = parseFloat(usdt.free);
+    if (xrp)  S.balanceXRP  = parseFloat(xrp.free);
+    renderPrice();
+    log('system', `💰 Реальний баланс: ${S.balanceUSDT.toFixed(2)} USDT / ${S.balanceXRP.toFixed(2)} XRP`);
+  } catch(e) {
+    log('error', 'Баланс: ' + e.message);
+  }
+}
+
+// ================================================================
+// PIT-38
+// ================================================================
+function updateQuickTax() {
+  const rate = parseFloat(el('plnRate').value) || 4.02;
+  let rev = 0, cost = 0;
+  S.trades.forEach(t => {
+    const pln = t.price * t.size * rate;
+    if (t.side === 'SELL') rev += pln;
+    else cost += pln;
+  });
+  const income = Math.max(0, rev - cost);
+  const tax = income * 0.19;
+  el('taxRevQ').textContent = rev.toFixed(2) + ' PLN';
+  el('taxCostQ').textContent = cost.toFixed(2) + ' PLN';
+  el('taxAmtQ').textContent = tax.toFixed(2) + ' PLN';
+}
+
+function exportCSV() {
+  const rate = parseFloat(el('plnRate').value) || 4.02;
+  const rows = [['Data','Typ','XRP','Cena','PLN','PnL']];
+  S.trades.forEach(t => {
+    rows.push([
+      new Date(t.time).toLocaleDateString('pl-PL'),
+      t.side, t.size.toFixed(6), t.price.toFixed(4),
+      (t.price * t.size * rate).toFixed(2),
+      (t.pnl || 0).toFixed(3)
+    ]);
+  });
+  dlFile('\uFEFF' + rows.map(r => r.join(';')).join('\n'), 'XRP_PIT38.csv', 'text/csv');
+  log('system', '📤 CSV експортовано');
+}
+
+function exportPIT() {
+  updateQuickTax();
+  const rate = parseFloat(el('plnRate').value) || 4.02;
+  const rev  = el('taxRevQ').textContent;
+  const cost = el('taxCostQ').textContent;
+  const tax  = el('taxAmtQ').textContent;
+  const html = `<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8"><title>PIT-38</title>
+<style>body{font-family:Arial;max-width:700px;margin:40px auto;padding:20px}h1{color:#1a3a5c;border-bottom:2px solid #1a3a5c;padding-bottom:10px}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{border:1px solid #ddd;padding:10px}th{background:#f0f4f8}.total{background:#e8f4f8;font-weight:bold}.tax-r{background:#fff3cd}</style></head>
+<body><h1>PIT-38 — XRP/USDT Binance</h1><p>Kurs PLN/USD (NBP): ${rate}</p>
+<table><tr><th>Pozycja</th><th>Kwota</th></tr>
+<tr><td>Przychód (C)</td><td>${rev}</td></tr>
+<tr><td>Koszt (D)</td><td>${cost}</td></tr>
+<tr class="total"><td>Dochód (E)</td><td>${el('taxRevQ').textContent}</td></tr>
+<tr class="tax-r"><td><b>Podatek 19% (G)</b></td><td><b>${tax}</b></td></tr></table>
+<p style="font-size:11px;color:#999">Wygenerowano: ${new Date().toLocaleString('pl-PL')} | Dokument poglądowy</p>
+</body></html>`;
+  dlFile(html, 'PIT38_XRP.html', 'text/html');
+  log('system', '🧾 PIT-38 HTML збережено');
+}
+
+function importBinanceCSV(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const lines = text.split('
+').filter(l => l.trim());
+    if (!lines.length) { log('error', 'CSV порожній'); return; }
+    
+    let imported = 0;
+    const rate = parseFloat(el('plnRate').value) || 4.02;
+    
+    lines.slice(1).forEach(line => {
+      const cols = line.split(',').map(c => c.replace(/"/g, '').trim());
+      if (cols.length < 5) return;
+      
+      // Binance CSV format: Date, Pair, Type, Price, Amount, Total
+      try {
+        const dateStr = cols[0];
+        const pair = cols[1] || '';
+        const type = (cols[2] || '').toUpperCase();
+        const price = parseFloat(cols[3]) || 0;
+        const amount = parseFloat(cols[4]) || 0;
+        const total = parseFloat(cols[5]) || price * amount;
+        
+        if (!pair.includes('XRP')) return;
+        if (!price || !amount) return;
+        if (type !== 'BUY' && type !== 'SELL') return;
+        
+        const time = new Date(dateStr).getTime() || Date.now();
+        const pnl = type === 'SELL' ? (price - (S.trades.find(t => t.side === 'BUY')?.price || price)) * amount : 0;
+        
+        S.trades.push({ side: type, price, size: amount, pnl, time, isAuto: false, imported: true });
+        imported++;
+      } catch(err) {}
+    });
+    
+    if (imported > 0) {
+      el('importedCount').textContent = imported;
+      saveStorage();
+      updateQuickTax();
+      renderHistory();
+      log('system', '📥 Імпортовано ' + imported + ' угод з Binance CSV');
+    } else {
+      log('warn', 'CSV: не знайдено угод XRP. Перевір формат файлу.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function dlFile(content, name, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type }));
+  a.download = name; a.click();
+}
+
+// ================================================================
+// API SETTINGS UI
+// ================================================================
+function saveKeys() {
+  S.apiKey    = el('apiKey').value.trim();
+  S.secretKey = el('secretKey').value.trim();
+  S.proxyUrl  = el('proxyUrl').value.trim();
+  log('system', '🔑 API ключі збережено в пам\'яті');
+}
+
+async function testConnection() {
+  log('info', '🔗 Тест з\'єднання Binance...');
+  try {
+    await binancePublic('/api/v3/ping');
+    log('system', '✅ Binance публічний API — OK');
+    if (S.apiKey) {
+      await fetchRealBalance();
+    } else {
+      log('warn', 'API ключі не введені — тільки публічний доступ');
+    }
+    setBadge('trading');
+  } catch(e) {
+    log('error', '❌ Помилка: ' + e.message);
+  }
+}
+
+function saveAllSettings() {
+  S.settings.tp = parseFloat(el('tpPct').value) || 3;
+  S.settings.sl = parseFloat(el('slPct').value) || 2;
+  S.settings.maxReentry = parseInt(el('maxReentry')?.value) || 3;
+  updateTPSL();
+  restartPolling();
+  saveStorage();
+  log('system', '✅ Налаштування збережено');
+}
+
+function updateTPSL() {
+  const tp = parseFloat(el('tpPct').value) || 3;
+  const sl = parseFloat(el('slPct').value) || 2;
+  S.settings.tp = tp; S.settings.sl = sl;
+  if (el('tpDisp')) el('tpDisp').textContent = tp.toFixed(2) + '%';
+  if (el('slDisp')) el('slDisp').textContent = sl.toFixed(2) + '%';
+  if (el('tpDesc')) el('tpDesc').textContent = '+' + tp.toFixed(2) + '% від входу';
+  if (el('slDesc')) el('slDesc').textContent = '-' + sl.toFixed(2) + '% від входу';
+}
+
+function updatePaperMode() {
+  S.paperMode = el('paperMode').checked;
+  el('paperLabel').style.display = S.paperMode ? '' : 'none';
+  log('system', 'Paper mode: ' + (S.paperMode ? 'УВІМКНЕНО' : '⚠️ ВИМКНЕНО — реальні гроші!'));
+  if (!S.paperMode && S.apiKey) fetchRealBalance();
+}
+
+function resetPaperBalance() {
+  S.balanceUSDT = 1000; S.balanceXRP = 250;
+  S.pnlToday = 0; S.tradesToday = 0;
+  S.position = null; S.trades = [];
+  renderPrice(); renderHistory(); updateQuickTax();
+  log('system', '↺ Баланс скинуто до 1000 USDT / 250 XRP');
+}
+
+function clearAllData() {
+  if (!confirm('Видалити всі дані?')) return;
+  localStorage.removeItem('xrpbot_v3');
+  resetPaperBalance();
+  log('system', '🗑 Дані очищено');
+}
+
+function updateStrategyDesc() {
+  const s = el('strategyType').value;
+  const descs = {
+    rsi: 'Купує коли RSI < 30 (перепроданість), продає коли RSI > 70 (перекупленість)',
+    ma_cross: 'Купує на золотому хресті (MA fast > MA slow), продає на мертвому хресті',
+    rsi_ma: 'Комбінований: потребує збігу сигналів RSI і положення ціни відносно MA',
+    breakout: 'Купує при пробої 20-свічкового максимуму, продає при пробої мінімуму'
+  };
+  el('strategyDesc').textContent = descs[s] || '';
+}
+
+function updateStrategyDisplay() {
+  el('rsiBuyDisplay').textContent = el('rsiBuyLevel').value;
+  el('rsiSellDisplay').textContent = el('rsiSellLevel').value;
+}
+
+// ================================================================
+// UI HELPERS
+// ================================================================
+function switchTab(name) {
+  const tabs = ['dashboard','chart','trade','auto','settings'];
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', tabs[i] === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el('panel-' + name).classList.add('active');
+  if (name === 'chart') { drawChart(); renderIndicators(); }
+}
+
+function setBadge(s) {
+  el('statusBadge').className = 'status-badge ' + s;
+  el('statusText').textContent = { offline:'OFFLINE', online:'ONLINE', trading:'LIVE', auto:'AUTO' }[s] || s;
+}
+
+function setPct(pct) {
+  el('tradeAmount').value = (S.balanceXRP * pct / 100).toFixed(4);
+}
+
+function renderHistory() {
+  const tbody = el('tradeHistoryBody');
+  if (!S.trades.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px">Немає угод</td></tr>';
+    return;
+  }
+  tbody.innerHTML = S.trades.slice(0, 40).map(t => {
+    const time = new Date(t.time).toLocaleTimeString('uk-UA',{hour:'2-digit',minute:'2-digit'});
+    const pnlTxt = t.pnl != null ? (t.pnl >= 0 ? '+' : '') + t.pnl.toFixed(3) : '—';
+    const pnlColor = !t.pnl ? '' : (t.pnl >= 0 ? 'style="color:var(--green)"' : 'style="color:var(--red)"');
+    const autoBadge = t.isAuto ? ' <span class="badge badge-auto">A</span>' : '';
+    return `<tr>
+      <td>${time}</td>
+      <td><span class="badge badge-${t.side.toLowerCase()}">${t.side}</span>${autoBadge}</td>
+      <td>${t.price.toFixed(4)}</td>
+      <td>${t.size.toFixed(4)}</td>
+      <td ${pnlColor}>${pnlTxt}</td>
+    </tr>`;
+  }).join('');
+}
+
+function log(type, msg) {
+  const c = el('tradeLog');
+  const time = new Date().toLocaleTimeString('uk-UA',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const d = document.createElement('div');
+  d.className = 'log-entry ' + type;
+  d.innerHTML = `<span class="time">${time}</span><span class="msg">${msg}</span>`;
+  c.insertBefore(d, c.firstChild);
+  if (c.children.length > 150) c.removeChild(c.lastChild);
+}
+
+function clearLog() {
+  el('tradeLog').innerHTML = '';
+  log('system', 'Лог очищено');
+}
+
+function el(id) { return document.getElementById(id); }
+
+function startPolling() {
+  if (S.priceInterval) clearInterval(S.priceInterval);
+  const ms = parseInt(el('refreshInterval').value) || 10000;
+  S.priceInterval = setInterval(async () => {
+    await refreshPrice();
+    await loadCandles();
+  }, ms);
+}
+
+function restartPolling() { startPolling(); }
+
+// ================================================================
+// STORAGE
+// ================================================================
+function saveStorage() {
+  try {
+    localStorage.setItem('xrpbot_v3', JSON.stringify({
+      trades: S.trades,
+      balanceUSDT: S.balanceUSDT,
+      balanceXRP: S.balanceXRP,
+      pnlToday: S.pnlToday,
+      tradesToday: S.tradesToday,
+      autoTrades: S.autoTrades,
+      autoPnl: S.autoPnl,
+      settings: S.settings,
+      paperMode: S.paperMode
+    }));
+  } catch(e) {}
+}
+
+function loadStorage() {
+  try {
+    const raw = localStorage.getItem('xrpbot_v3');
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (d.trades)       S.trades = d.trades;
+    if (d.balanceUSDT != null) S.balanceUSDT = d.balanceUSDT;
+    if (d.balanceXRP  != null) S.balanceXRP  = d.balanceXRP;
+    if (d.pnlToday    != null) S.pnlToday    = d.pnlToday;
+    if (d.tradesToday != null) S.tradesToday = d.tradesToday;
+    if (d.autoTrades  != null) S.autoTrades  = d.autoTrades;
+    if (d.autoPnl     != null) S.autoPnl     = d.autoPnl;
+    if (d.settings)   Object.assign(S.settings, d.settings);
+    if (d.paperMode   != null) {
+      S.paperMode = d.paperMode;
+      el('paperMode').checked = d.paperMode;
+    }
+    if (d.settings) {
+      if (el('tpPct'))  el('tpPct').value  = d.settings.tp  || 3;
+      if (el('slPct'))  el('slPct').value  = d.settings.sl  || 2;
+    }
+    el('tradesInfo').textContent = (d.tradesToday || 0) + ' / ' + (d.autoTrades || 0);
+    el('autoTradeCount').textContent = d.autoTrades || 0;
+    if (d.autoPnl) {
+      const e = el('autoPnl');
+      e.textContent = (d.autoPnl >= 0 ? '+' : '') + d.autoPnl.toFixed(3);
+      e.className = 'stat-value ' + (d.autoPnl >= 0 ? 'green' : 'red');
+    }
+    updatePnlDisplay();
+    log('system', `📂 Завантажено: ${S.trades.length} угод`);
+  } catch(e) {}
+}
+</script>
+
+<!-- Install Banner -->
+<div id="installBanner" style="display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#111318;border:1px solid #00d4ff;border-radius:12px;padding:12px 16px;z-index:9999;width:90%;max-width:400px;box-shadow:0 4px 20px rgba(0,212,255,0.2)">
+  <div style="font-size:13px;font-weight:700;color:#00d4ff;margin-bottom:4px">⚡ Встанови XRP Bot</div>
+  <div style="font-size:11px;color:#5a6070;margin-bottom:10px">Додай на робочий стіл — працює як справжній додаток!</div>
+  <div style="display:flex;gap:8px">
+    <button id="installBtn" style="flex:1;background:#00d4ff;color:#000;border:none;border-radius:8px;padding:8px;font-weight:700;font-size:12px;cursor:pointer">📲 Встановити</button>
+    <button onclick="document.getElementById('installBanner').style.display='none'" style="background:transparent;border:1px solid #1e2330;color:#5a6070;border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer">✕</button>
+  </div>
+</div>
+
+<script>
+const manifest = {
+  name: "XRP Bot v2",
+  short_name: "XRP Bot",
+  description: "Binance XRP Trading Bot",
+  start_url: ".",
+  display: "standalone",
+  background_color: "#0a0c0f",
+  theme_color: "#00d4ff",
+  orientation: "portrait",
+  icons: [{
+    src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAABmJLR0QA/wD/AP+gvaeTAAAC7klEQVR4nO3BMQEAAADCoPVP7WsIoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeAMBOAABHgAAAABJRU5ErkJggg==",
+    sizes: "192x192",
+    type: "image/png"
+  }]
+};
+
+try {
+  const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+  const manifestURL = URL.createObjectURL(blob);
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = manifestURL;
+  document.head.appendChild(link);
+} catch(e) {}
+
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBanner').style.display = 'block';
+});
+
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const result = await deferredPrompt.userChoice;
+    document.getElementById('installBanner').style.display = 'none';
+    deferredPrompt = null;
+  } else {
+    alert('Як додати на екран:\n\nAndroid Chrome:\n1. Натисни ⋮ (три крапки) вгорі\n2. "Додати на головний екран"\n\niPhone Safari:\n1. Натисни кнопку Поділитися\n2. "На екран Початок"');
+  }
+});
+
+setTimeout(() => {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  const isMobile = /Android|iPhone|iPad/.test(navigator.userAgent);
+  if (!isStandalone && isMobile && !deferredPrompt) {
+    document.getElementById('installBanner').style.display = 'block';
+  }
+}, 3000);
+<\/script>
+</body>
+</html>
